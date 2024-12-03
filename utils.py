@@ -24,6 +24,23 @@ import dashscope
 def func1():
     return "abcdde"
 
+def encode_image(frame):
+    """Encodes an image frame to base64 format.
+
+    Args:
+        frame: A NumPy array representing the image frame.
+
+    Returns:
+        A string containing the base64 encoded image.
+    """
+    # Convert the frame to JPEG format
+    retval, buffer = cv2.imencode('.jpg', frame)
+
+    # Encode the JPEG buffer to base64
+    encoded_image = base64.b64encode(buffer).decode('utf-8')
+
+    return encoded_image
+
 
 def get_score_promppt():
 
@@ -180,3 +197,128 @@ def generate_gantt_plot():
             show_hover_fill=False ,colors=colors, show_colorbar=True, group_tasks=True)
     # fig2.show()
     return fig2
+
+
+def generate_text_from_video(state, img_paths=["frame_%d.jpg"%i for i in range(10)]):
+
+    messages = [{"role": "user",
+            "content": [
+            {"video": img_paths},
+            {"text": get_score_promppt()}]}]
+
+    response = dashscope.MultiModalConversation.call(
+        # 若没有配置环境变量，请用百炼API Key将下行替换为：api_key="sk-xxx",
+        api_key=userdata.get('DASHSCOPE_API_KEY'),
+        model='qwen-vl-max-latest',
+        messages=messages
+    )
+    state_json = response["output"]["choices"][0]["message"].content[0]["text"]
+    state_json = json.loads(re.sub(r"```json\n|```", "", state_json))
+
+    state.describe = state_json["describe"]
+    state.emotion = state_json["emotion"]
+    state.score = state_json["score"]
+    return state
+
+def generate_speech(text="今天天气怎么样？"):
+    model = "cosyvoice-v1"
+    voice = "longwan"
+    synthesizer = SpeechSynthesizer(model=model, voice=voice)
+    audio = synthesizer.call(text)
+    # Yield the audio bytes
+    return audio # audio_bytes
+
+
+def store_10_frames(cap):
+    """Stores 10 frames from the video in an array.
+
+    Args:
+    cap: A cv2.VideoCapture object.
+
+    Returns:
+    A list containing 10 frames as NumPy arrays.
+    """
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    interval = (total_frames - 0) // 9  # Interval for other 8 frames
+
+    ret, frame = cap.read()
+    frames = []
+    while ret:
+        frames.append(frame)
+        ret, frame = cap.read()
+
+    return frames[::interval]
+
+def save_frames_to_disk(frames, output_dir):
+    """Saves the frames to disk in RGB format.
+
+    Args:
+        frames: A list of frames as NumPy arrays.
+        output_dir: The directory to save the frames to.
+    """
+    #   os.makedirs(output_dir, exist_ok=True)  # Create output directory if it doesn't exist
+
+    for i, frame in enumerate(frames):
+        frame_rgb = frame
+        # frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # Convert to RGB
+        output_path = os.path.join(output_dir, f"frame_{i}.jpg")  # Save as PNG to preserve RGB
+        cv2.imwrite(output_path, frame_rgb)
+
+def generate_text_from_image(frame):
+    # frame = cv2.imread("/content/FocusBuddy/resources/pexels-olly-3767377.jpg")
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    base64_image = encode_image(frame)
+    # 若没有配置环境变量，请用百炼API Key将下行替换为：api_key="sk-xxx",
+
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+    payload = {
+        "model": "qwen-vl-max-1030", # "qwen-vl-max", # "qwen-vl-max-latest",
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
+                    },
+                    {"type": "text", "text": "请详细描述图片"},
+                ],
+            }
+        ],
+    }
+    response = requests.post(
+        "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+        headers=headers,
+        json=payload,
+    )
+    return response.json()["choices"][0]["message"]["content"]
+
+
+def generate_text_from_state(state, input_text=None):
+
+    if input_text:
+        messages = state.dialog
+        messages.append({"role": "user", "content": input_text})
+    else:
+        messages = [{"role": "system",
+            "content": """你是一个辅助专注力提升的工具，你需要根据用户当前的工作状态，提供相应的策略和措施，帮助用户提升当下的注意力""",
+        }]
+
+        messages.append({"role": "user", "content": get_method_prompt()%(state.describe, state.emotion,state.score)})
+
+    response = Generation.call(
+        api_key=userdata.get('DASHSCOPE_API_KEY'), # os.getenv("DASHSCOPE_API_KEY"),
+        model="qwen-max",
+        messages=messages,
+        result_format="json_object",
+    )
+    # method_json = response.output.choices[0].message.content #
+    method_json = response.output.text
+    # print(method_json)
+    method_json = json.loads(method_json)
+    messages.append({"role": "assistant", "content": method_json["content"]})
+
+    state.method_id = method_json["method_id"]
+    state.dialog = messages
+
+    return state
