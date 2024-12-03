@@ -1,4 +1,25 @@
 import pandas as pd
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+import plotly.graph_objects as go
+import plotly.figure_factory as ff
+import gradio as gr
+import cv2
+import base64
+import numpy as np
+import io
+from pydub import AudioSegment
+import os
+from dashscope import MultiModalConversation
+from dashscope.audio.tts_v2 import *
+from dashscope import Generation
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+import requests
+import random
+import time
+import json, re
+import dashscope
 
 def func1():
     return "abcdde"
@@ -79,3 +100,83 @@ def get_method_prompt():
     }
     """
     return method_prompt
+
+
+start_time = datetime(2024, 11, 21, 9, 0, 0)
+time_series = [start_time + timedelta(minutes=15 * i) for i in range(20)]
+
+df_log = pd.read_csv("./state_log.csv")
+df_log["时间"] = time_series
+df_log = df_log.iloc[:,[7,0,1,2,3,4,5,6]]
+
+
+
+def generate_pie_plot():
+    labels = df_log.loc[:,["干扰因素","干扰次数"]].groupby("干扰因素").sum().reset_index()["干扰因素"].tolist() # ['Oxygen','Hydrogen','Carbon_Dioxide','Nitrogen']
+    values = df_log.loc[:,["干扰因素","干扰次数"]].groupby("干扰因素").sum().reset_index()["干扰次数"].tolist() # [4500, 2500, 1053, 500]
+    fig = go.Figure(data=[go.Pie(labels=labels, values=values, textinfo='label+percent',
+                    insidetextorientation='radial',showlegend=False,hole=.3,)])
+    fig.update_layout(height=240)
+    return fig
+
+
+
+def generate_gantt_plot():
+
+    df = [dict(Task='任务一', Start='2023-11-21 09:00:00',Finish='2023-11-21 09:15:00', Resource='B'),
+        dict(Task='任务一', Start='2023-11-21 09:15:00',Finish='2023-11-21 09:30:00', Resource='D'),
+        dict(Task='任务二', Start='2023-11-21 09:30:00',Finish='2023-11-21 09:45:00', Resource='C'),
+        dict(Task='任务二', Start='2023-11-21 09:45:00',Finish='2023-11-21 10:00:00', Resource='C'),
+        dict(Task='任务二', Start='2023-11-21 10:00:00',Finish='2023-11-21 10:15:00', Resource='B'),
+        dict(Task='任务二', Start='2023-11-21 10:15:00',Finish='2023-11-21 10:30:00', Resource='A'),
+        dict(Task='任务二', Start='2023-11-21 10:30:00',Finish='2023-11-21 10:45:00', Resource='B'),
+        dict(Task='任务二', Start='2023-11-21 10:45:00',Finish='2023-11-21 11:00:00', Resource='C'),
+        dict(Task='任务二', Start='2023-11-21 11:00:00',Finish='2023-11-21 11:15:00', Resource='B'),
+        dict(Task='任务四', Start='2023-11-21 11:15:00',Finish='2023-11-21 11:30:00', Resource='C'),
+        dict(Task='任务四', Start='2023-11-21 11:30:00',Finish='2023-11-21 11:45:00', Resource='C'),
+        dict(Task='任务四', Start='2023-11-21 11:45:00',Finish='2023-11-21 12:00:00', Resource='A'),
+        dict(Task='任务四', Start='2023-11-21 12:00:00',Finish='2023-11-21 12:15:00', Resource='D'),
+        dict(Task='任务四', Start='2023-11-21 12:15:00',Finish='2023-11-21 12:30:00', Resource='B'),
+        dict(Task='任务二', Start='2023-11-21 12:30:00',Finish='2023-11-21 12:45:00', Resource='B'),
+        dict(Task='任务五', Start='2023-11-21 12:45:00',Finish='2023-11-21 13:00:00', Resource='C'),
+        dict(Task='任务五', Start='2023-11-21 13:00:00',Finish='2023-11-21 13:15:00', Resource='D'),
+        dict(Task='任务五', Start='2023-11-21 13:15:00',Finish='2023-11-21 13:30:00', Resource='B'),
+        dict(Task='任务一', Start='2023-11-21 13:30:00',Finish='2023-11-21 13:45:00', Resource='B'),
+        dict(Task='任务一', Start='2023-11-21 13:45:00',Finish='2023-11-21 14:00:00', Resource='B'),
+        dict(Task='任务一', Start='2023-11-21 14:00:00',Finish='2023-11-21 14:15:00', Resource='D'),
+        dict(Task='任务二', Start='2023-11-21 14:15:00',Finish='2023-11-21 14:30:00', Resource='E'),
+        dict(Task='任务一', Start='2023-11-21 14:30:00',Finish='2023-11-21 14:45:00', Resource='D'),
+        dict(Task='任务一', Start='2023-11-21 14:45:00',Finish='2023-11-21 15:00:00', Resource='A'),
+        dict(Task='任务一', Start='2023-11-21 15:00:00',Finish='2023-11-21 15:15:00', Resource='C'),
+        dict(Task='任务一', Start='2023-11-21 15:15:00',Finish='2023-11-21 15:30:00', Resource='D'),
+        dict(Task='任务五', Start='2023-11-21 15:30:00',Finish='2023-11-21 15:45:00', Resource='E'),
+        dict(Task='任务五', Start='2023-11-21 15:45:00',Finish='2023-11-21 16:00:00', Resource='A'),
+        dict(Task='任务五', Start='2023-11-21 16:00:00',Finish='2023-11-21 16:15:00', Resource='E'),
+        dict(Task='任务五', Start='2023-11-21 16:15:00',Finish='2023-11-21 16:30:00', Resource='D'),
+        dict(Task='任务五', Start='2023-11-21 16:30:00',Finish='2023-11-21 16:45:00', Resource='D'),
+        dict(Task='任务五', Start='2023-11-21 16:45:00',Finish='2023-11-21 17:00:00', Resource='C'),
+        dict(Task='任务五', Start='2023-11-21 17:00:00',Finish='2023-11-21 17:15:00', Resource='C'),
+        dict(Task='任务四', Start='2023-11-21 17:15:00',Finish='2023-11-21 17:30:00', Resource='A'),
+        dict(Task='任务四', Start='2023-11-21 17:30:00',Finish='2023-11-21 17:45:00', Resource='B'),
+        dict(Task='任务四', Start='2023-11-21 17:45:00',Finish='2023-11-21 18:00:00', Resource='A'),
+        dict(Task='任务四', Start='2023-11-21 18:00:00',Finish='2023-11-21 18:15:00', Resource='B'),
+        dict(Task='任务五', Start='2023-11-21 18:15:00',Finish='2023-11-21 18:30:00', Resource='D'),
+        dict(Task='任务三', Start='2023-11-21 18:30:00',Finish='2023-11-21 18:45:00', Resource='C'),
+        dict(Task='任务三', Start='2023-11-21 18:45:00',Finish='2023-11-21 19:00:00', Resource='C'),
+        dict(Task='任务四', Start='2023-11-21 19:00:00',Finish='2023-11-21 19:15:00', Resource='B'),
+        dict(Task='任务四', Start='2023-11-21 19:15:00',Finish='2023-11-21 19:30:00', Resource='A'),
+        ]
+
+
+    colors = {'A':'rgb(38,241,254)',
+        'B':'rgb(47,224,237)',
+        'C':'rgb(230,213,161)',
+        'D':'rgb(237,113,157)',
+        'E':'rgb(237,47,114)',
+        }
+
+    # fig2 = ff.create_gantt(df, colors=colors, index_col='Resource', show_colorbar=True,group_tasks=True)
+    fig2 = ff.create_gantt(df,  title="今日专注度分布情况", index_col='Resource', height=360,
+            show_hover_fill=False ,colors=colors, show_colorbar=True, group_tasks=True)
+    # fig2.show()
+    return fig2
