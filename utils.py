@@ -21,6 +21,9 @@ import time
 import json, re
 import dashscope
 
+from google.colab import userdata
+
+
 def func1():
     return "abcdde"
 
