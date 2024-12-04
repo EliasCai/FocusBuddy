@@ -136,10 +136,28 @@ def generate_pie_plot():
     values = df_log.loc[:,["干扰因素","干扰次数"]].groupby("干扰因素").sum().reset_index()["干扰次数"].tolist() # [4500, 2500, 1053, 500]
     fig = go.Figure(data=[go.Pie(labels=labels, values=values, textinfo='label+percent',
                     insidetextorientation='radial',showlegend=False,hole=.3,)])
-    fig.update_layout(height=240)
+    fig.update_layout(height=240,)
     return fig
 
 
+def generate_time_pie_plot():
+    
+    labels = ['6小时35分钟',' ']# ,'Carbon_Dioxide','Nitrogen']
+    values = [6500, 1500] # , 1053, 500]
+    night_colors = ['darkblue', 'rgb(242, 242, 242)']
+
+    # pull is given as a fraction of the pie radius
+    fig3 = go.Figure(data=[go.Pie(labels=labels, values=values,marker_colors=night_colors)])
+    fig3.update_traces(hole=.5, textinfo='label')
+    fig3.update_layout(
+        # title_text="今日专注时长",
+        # annotations=[dict(text="完成比例82%", x=0.5, y=0.5,font_size=14, showarrow=False,  xref='paper',  yref='paper',)], #xanchor="center")],
+        showlegend=False,  # 隐藏图例
+        height=240,
+        # margin=dict(l=0, r=0, t=0, b=0),  # 修改 margin
+        )
+
+    return fig3
 
 def generate_gantt_plot():
 
