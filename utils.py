@@ -136,7 +136,9 @@ def generate_pie_plot():
     values = df_log.loc[:,["干扰因素","干扰次数"]].groupby("干扰因素").sum().reset_index()["干扰次数"].tolist() # [4500, 2500, 1053, 500]
     fig = go.Figure(data=[go.Pie(labels=labels, values=values, textinfo='label+percent',
                     insidetextorientation='radial',showlegend=False,hole=.3,)])
-    fig.update_layout(height=240,)
+    fig.update_layout(height=240,        
+             margin=dict(l=0, r=0, t=0, b=0),  # 修改 margin
+    )
     return fig
 
 
@@ -154,7 +156,7 @@ def generate_time_pie_plot():
         # annotations=[dict(text="完成比例82%", x=0.5, y=0.5,font_size=14, showarrow=False,  xref='paper',  yref='paper',)], #xanchor="center")],
         showlegend=False,  # 隐藏图例
         height=240,
-        # margin=dict(l=0, r=0, t=0, b=0),  # 修改 margin
+        margin=dict(l=20, r=20, t=20, b=20),  # 修改 margin
         )
 
     return fig3
@@ -214,8 +216,8 @@ def generate_gantt_plot():
         }
 
     # fig2 = ff.create_gantt(df, colors=colors, index_col='Resource', show_colorbar=True,group_tasks=True)
-    fig2 = ff.create_gantt(df,  title="今日专注度分布情况", index_col='Resource', height=360,
-            show_hover_fill=False ,colors=colors, show_colorbar=True, group_tasks=True)
+    fig2 = ff.create_gantt(df, index_col='Resource', height=360,title=" ",
+            show_hover_fill=False ,colors=colors, show_colorbar=True, group_tasks=True) # title="今日专注度分布情况"
     # fig2.show()
     return fig2
 
