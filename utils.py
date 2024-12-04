@@ -25,7 +25,7 @@ from google.colab import userdata
 
 
 def func1():
-    return "abcdde"
+    return "hello"
 
 def encode_image(frame):
     """Encodes an image frame to base64 format.
