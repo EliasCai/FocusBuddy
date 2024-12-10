@@ -221,7 +221,7 @@ if __name__ == "__main__":
             batch_size=1,
             generate_kwargs=generate_kwargs,
         )
-		print(result)
+	print(result)
 
     uvicorn.run(
         app,
