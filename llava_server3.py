@@ -212,6 +212,7 @@ if __name__ == "__main__":
 
     image_paths = ["https://llava-vl.github.io/static/images/view.jpg"]
     images = []
+    print("abc")
     for image_path in image_paths:
         images.append(PIL.Image.open(requests.get(image_path, stream=True, timeout=3000).raw))
     for i in range(args.warmup):
@@ -222,6 +223,7 @@ if __name__ == "__main__":
             generate_kwargs=generate_kwargs,
         )
         print(result)
+    print("bcd")
 
     uvicorn.run(
         app,
